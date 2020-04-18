@@ -1,0 +1,341 @@
+I" R<h1 id="using-clustering-techniques-to-isolate-tables-in-pdf-documents">Using Clustering techniques to isolate tables in PDF documents</h1>
+
+<p>Most business documents are distributed or available only in PDF format.
+Tables contain valuable data for further processing or to join with
+other data elements or tables. Many tools exist to extract the textual
+information, but extracting tables is a different story.</p>
+
+<p>While PDF documents display tables with different formats, but don’t
+have an underlying structure like HTML and LaTex do. They may or may not
+be presented with well-defined column and row separators. Cell may be
+separated with visible lines or just whitespace. While the human eye is
+able to discern that these are tables, it is difficult for programs to
+make the same association.</p>
+
+<p>Even early versions of HTML supported a table constructs that can coded
+via a series of tags such as &lt;table&gt;, &lt;tr&gt; (row), and
+&lt;td&gt; (column) tags. LaTex uses a something similar -
+\begin{table}, \begin{tabular}, \end{tabular}, and \end{table} tags
+to describe a table.</p>
+
+<p>For example, a table like this would be coded as follows</p>
+
+<table border="solid 1px black">
+    <tr>
+        <th></th><th><div>HTML</div></th><th><div class="'table_header">LaTex</div></th>
+    </tr>
+    <tr>
+        <td>
+        <table>
+            <tr><td>A1</td><td>A2</td><td>A3</td></tr>
+            <tr> <td>B1</td><td>B2</td><td>B3</td>
+            </tr> <tr> <td>C1</td> <td>C2</td> <td>C3</td></tr> 
+         </table>
+        </td>
+        <td>
+        &lt;table&gt;                            
+          <p>&lt;tr&gt;&lt;td&gt;A1&lt;/td&gt;&lt;td&gt;A2&lt;/td&gt;&lt;td&gt;A3&lt;/td&gt;&lt;/tr&gt;                           
+          <p>&lt;tr&gt;&lt;td&gt;B1&lt;/td&gt;&lt;td&gt;B2&lt;/td&gt;&lt;td&gt;B3&lt;/td&gt;&lt;/tr&gt;                           
+          <p>&lt;tr&gt;&lt;td&gt;C1&lt;/td&gt;&lt;td&gt;C2&lt;/td&gt;&lt;td&gt;C3&lt;/td&gt;&lt;/tr&gt;                           
+          &lt;/table&gt;
+        &lt;/td&gt;
+        <td>
+            <div class="latex_code">\\begin{table}\[\]        
+                              
+   \\begin{tabular}{|l|l|l|}  
+   \\hline                              
+   A1 &amp; A2 &amp; A3 \\\\ \\hline                              
+   B1 &amp; B2 &amp; B3 \\\\ \\hline                              
+   C1 &amp; C2 &amp; C3 \`\\\ \\hline                              
+   \\end{tabular}                              
+   \\end{table}</div></td>
+    &lt;/tr&gt;
+&lt;/table&gt;
+
+PDF documents have no discernible tags to target for extraction. Line
+separators are Graphics and span a single cell. Text is rendered in
+graphic boxes that may or may not be associated with one another, even
+within a row or a column.
+
+Tools used and problem
+----------------------
+
+I use python for all my Data Science and NLP activities. ***PyPDF2***,
+***tabula***, ***PDFMiner***, and ***PyMuPDF*** are some of the
+libraries that can read, extract text from, and manipulate PDF files.
+Each of them is useful for different purposes. ***tabula*** specializes
+in retrieving table data from PDF documents and is able to do so with
+many tables in many different formats.
+
+***tabula*** is capable of identifying and extracting content from
+tables with good line separators. However, when table content is only
+separated by white space, it is not able to find the structure. For
+example
+
+<img src="../images/image1.png" width="362" height="555" />
+
+We’ll look at one technique I developed to read a table like the one
+above.
+
+Libraries needed
+----------------
+
+For this exercise, I used the following libraries
+
+```
+pandas (v 0.24.2)
+numpy (v 1.16.4)
+tablula (2.0.4)
+sklearn (v 0.21.2)
+fitz (part of PyMuPDF v 1.16.8)
+```
+These were installed and run on Windows 10 with Python 3.7.3.
+
+Approach
+--------
+
+##### Imports
+
+```python
+import pandas as pd
+import numpy as np
+import os
+import fitz
+```
+
+##### Read the PDF
+
+    1.  Use ***fitz*** to open the file and read all the pages
+
+    2.  For the page that has the table in it, get the text content as
+        text blocks
+
+```python 
+        doc = fitz.open(pdf_file)
+        pages = [p for p in doc.pages()]
+        curr_page = 1
+
+        blocks = pages[curr_page].getText('blocks')
+```
+Blocks are returned as list of tuples. The tuples have both position information as well as the actual text. For example, a block looks like
+`(48.169, 64.239, 80.959, 78.009, SERIAL #, 13, 0)`. These
+values correspond to `x0, y0, x1, y1`, `lines in block`,
+`block_no`, `block_type`). Block type will always be 0 as it is a
+text block (image blocks have `block_type` = 1).
+
+For example, the block on the top right is represented by
+
+`(276.8030090332, 28.64349365234, 359.8127746582, 39.82207107543, SPACE SHUTTLE, 16, 0)`
+
+`(x0, y0)` represent the top left corner, while `(x1, y1)` is the lower right corner. 
+Together they form the bounding box for the block.
+
+##### Organize the blocks into a DataFrame to ease manipulation
+``` python
+block_data = pd.DataFrame(data=blocks, columns=\['x0', 'y0', 'x1',
+'y1', "line", 'block_type', 'block_no'\])
+```
+
+
+|     | **x0**   | **y0**   | **x1**   | **y1**   | **line**                       | **block_type** | **block_no** |
+|-----|----------|----------|----------|----------|--------------------------------|-----------------|---------------|
+| 13  | 48.1890  | 65.8335  | 92.9674  | 77.0121  | SERIAL \#                      | 13              | 0             |
+| 44  | 277.2000 | 66.2305  | 315.5247 | 90.3351  | ACTION CODE                    | 44              | 0             |
+| 12  | 48.1895  | 102.8822 | 85.0811  | 113.9631 | 31-41-59                       | 12              | 0             |
+| 30  | 147.7130 | 102.9962 | 217.2046 | 125.0751 | MAIN ENGINE (CONTD)            | 30              | 0             |
+| 43  | 276.8032 | 102.9974 | 330.6152 | 114.0771 | SSME-01-00                     | 43              | 0             |
+| 11  | 48.1901  | 128.9902 | 69.1116  | 140.0711 | - - - -                        | 11              | 0             |
+| 29  | 147.7134 | 128.9913 | 225.2479 | 161.9541 | HIGH-PRESSURE FUEL TURBO- PUMP | 29              | 0             |
+| 42  | 276.8030 | 128.9909 | 330.6152 | 140.0711 | SSME-01-01                     | 42              | 0             |
+
+
+##### Group blocks into rows and columns
+
+We can use the positional information, especially (x0, y0) coordinates to organize the blocks into rows and columns. Rows can be created
+using the vertical separator, y0 and columns using x0. However, the blocks are not always aligned exactly. Y coordinates values will vary
+by small amounts, as will the x coordinates.
+
+One way to align blocks in either axis would be to round the values to
+the point where they are the same. Some numbers may need to be rounded
+up, while others rounded down. The process would have to be iterative
+and there is no set rules for when to stop. We need a different way to
+do this.
+
+The answer is ***clustering***. We can let clustering algorithms do the heavy lifting of identifying blocks that go together.
+
+##### Cluster using DBSCAN
+
+DBSCAN is a good algorithm to use as we don’t now the number of lines
+that the page contains. Unlike K-Means, it does not require the user
+to predetermine the number of clusters it should split the data into.
+The algorithm is based on the concept of differentiating high density
+areas from low density areas. In general, it does not care about the
+shape of the cluster.
+
+The ***sklearn*** library has an implementation of DBSCAN and its
+signature is
+
+|     Parameter                |  Description |
+|---------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| eps=0.5             | Maximum distance between two samples for one to be considered as in the neighborhood of the other.                                                                                                                                                                                                                                                                                                                                                   
+  When it is too small, the points are in different clusters and when it is large, clusters are usually large and encompass potentially smaller ones.                                                                                                                                                                                                                                                                                                                          |
+| min_samples=5      | It controls the algorithms’ tolerance towards noise. This parameter indicates there are as many other samples from a core sample in the cluster within a distance of eps                                                                                                                                                                                                                                                                                                    |
+| metric='euclidean' | Used to calculate distance. Options are *cityblock*, *cosine*, *euclidean*, *l1*, *l2*, *manhattan*, from *sklearn* and 17 others from *scipy.spatial.distance*. See [*sklearn.metrics.pairwise_distances*](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise_distances.html#sklearn.metrics.pairwise_distances) for all the ones that are available for use. We could also pass in precomputed values by setting this parameter to *precomputed* |
+| metric_params=None | Additional parameters for the distance function and can be passed in as a dict.                                                                                                                                                                                                                                                                                                                                                                                             |
+| algorithm='auto'   | Algorithm used by the *NearestNeighbors* module to compute pointwise distances and find nearest neighbors. Options are *auto*, *ball_tree*, *kd*_*tree*, *brute*.                                                                                                                                                                                                                                                                                                         |
+| leaf_size=30       | Leaf size passed to *BallTree* or *cKDTree*.                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| p=None             | Power of the *Minkowski* distance metric (found in *scipy.spatial.distance* ).                                                                                                                                                                                                                                                                                                                                                                                              |
+| n_jobs=None        | The number of parallel jobs to run                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+
+
+```
+cluster_model = DBSCAN(eps = 0.5, min_samples = 0, metric ='manhattan')
+cluster_model.fit(_data[y0].values)
+
+block_data['cluster_id'] = cluster_model.labels_
+```
+
+Using ep = 0.5 gave the best results. I chose min_samples = 0 to
+indicate that some lines may only have the core element. Most of them would have more than 1 row, but it is acceptable to have clusters with
+just 1 element.
+
+To examine the results, let us transform the data a little and then
+pivot it to look like the page
+
+```
+# Group the data by cluster_id and
+# count the number of x0 values (number of rows in cluster)
+# average value of y0, the vertical separator
+
+# join the line elements into a string that is pipe delimited
+
+clustered_data = block _blocks[['cluster_id', 'x0', 'y0', 'line']]
+                            .sort_values(['cluster_id', 'x0'])
+                            .groupby(['cluster_id'])
+                            .agg({'x0':'count', 'y0':np.average, 'line':lambda x: '|'.join(x.astype('str'))})
+
+# Pivot clustered_table data to display in a page format
+clustered_table.pivot(index='y0 ', columns='x0', values='line').fillna('')
+```
+**Results**
+
+The table below shows that the blocks have neatly organized themselves
+by the line they belong to.
+
+| **Cluster ID** | **x0** | **y0**     | **0**        | **1**                                          | **2** |
+|----------------|--------|------------|--------------|------------------------------------------------|-------|
+| **15**         | 1      | 27.039623  | TO 1B-2A-06  |                                                |       |
+| **13**         | 2      | 64.239410  | S/S/SN       | WORK UNIT CODE                                 |       |
+| **12**         | 3      | 101.499471 | 32-00-00     | LANDING GEAR (CONTD)                           | 13000 |
+| **11**         | 3      | 127.469472 | - - - -      | WHEELS AND BRAKES ANTI-SKID SUBSYSTEM          | 13F00 |
+| **16**         | 2      | 164.409607 | NOC          | 13FC0 13F99                                    |       |
+| **10**         | 2      | 179.409409 | 32-41-101    | ANTISKID CONTROL UNIT                          |       |
+| **9**          | 3      | 205.409475 | - - - -      | PRINTED WIRE BOARD, POWER DISTRIBUTION         | 13FCA |
+| **8**          | 3      | 231.409475 | - - - -      | PRINTED WIRE BOARD, WHEEL CONTROL              | 13FCB |
+| **7**          | 3      | 257.409475 | - - - -      | PRINTED WIRE BOARD, BITE ASSY                  | 13FCK |
+| **6**          | 3      | 283.409475 | 32-41-103    | NORM ANTISKID MOD- ULE, LH AND RH              | 13FD0 |
+| **5**          | 3      | 309.409475 | - - - -      | TRANSDUCER ASSY, WHEEL SPEED, NO. 1 THRU NO. 8 | 13FH0 |
+| **4**          | 3      | 346.409475 | 32-41-105    | WHEEL SPEED TRANS- DUCER, NO. 1 THRU NO. 8     | 13FHA |
+| **3**          | 3      | 383.409475 | 32-41-107    | ALT ANTISKID MOD- ULE, LH AND RH               | 13FF0 |
+| **2**          | 3      | 409.409475 | 32-41-111    | BRAKE ANTISKID VALVE (PRIMARY)                 | 13FDA |
+| **1**          | 3      | 435.409475 | 32-41-111    | BRAKE ANTISKID VALVE (ALTERNATE)               | 13FFA |
+| **0**          | 3      | 461.409475 | 32-41-115    | BRAKE HYDRAULIC FUSE                           | 13FG0 |
+| **14**         | 1      | 521.669189 | 32-015 1-177 |                                                |       |
+
+**Metrics**
+
+Number of clusters = 17
+
+Average cluster size = 3
+
+Silhouette score = 0.954
+
+The metrics indicate we have really well defined clusters. There are
+18 lines in the page, not counting newlines within the table as
+separate ones and most lines have 3 elements in them. I am confident
+that the clustering algorithm found the right clusters
+
+However, not everything is perfectly in place. When we examine those
+rows that do not have the same size as the average cluster, we get
+
+| **Cluster ID** | **x0** | **0**        | **1**                 |                                                                                     |
+|----------------|--------|--------------|-----------------------|-------------------------------------------------------------------------------------|
+| **15**         | 1      | TO 1B-2A-06  |                       | Page header                                                                         |
+| **13**         | 2      | S/S/SN       | WORK UNIT CODE        | Table header                                                                        |
+| **16**         | 2      | NOC          | 13FC0 13F99           | Row missing a value                                                                 
+                                                                                          
+There are 2 Action Codes, but that is related to how ***fitz*** generated the block 
+
+| **10**         | 2      | 32-41-101    | ANTISKID CONTROL UNIT |
+| **14**         | 1      | 32-015 1-177 |                       | Page footer
+
+While we have really good results, we can do better. The page has header
+and footer information that is not really related to the table. As they
+are separated from the main table body positionally, we can use that
+information to separate them from the main content.
+
+##### Remove outliers
+
+<img src="../images/page_outliers.png" width="225" height="259" />
+To determine
+blocks that are outside the main table, I first determined the mean
+and standard deviation of x0 and y0 values. If values fell more than
+1.5 \* the standard deviation on either side of the mean, the value
+would be an outlier. With a range of 1.5, the page header, footer, and
+the table header were all considered as outliers. However, using a
+range of 1.75 kept just the header and footer as outliers.
+
+The process was
+
+a) Calculate the mean and standard deviation of x0 and y0
+
+b) Locate points that fall outside of 1.5 \* standard deviation of the mean
+
+c) Data points identified in Step 2 are the outliers
+
+The technique was applied to both the x and y axis and outliers were
+those that fell outside either of those ranges. So, a point too far to
+the right or left of the page or too high or low on the page would be
+flagged as outliers. From this exercise, the page header and footer
+are too far from the other blocks and come out as outliers.
+
+ After removing the outliers, I reran the DBSCAN algorithm. Set the
+ column headers to Row 0, drop row 0 and we get the following table
+
+|                                                         |                                                         |
+|---------------------------------------------------------|---------------------------------------------------------|
+| <img src="../images/pdf_datatable.png" width="327" height="288" /> | <img src="../images/pdf_page.png" width="230" height="342" /> |
+
+The table has been parsed mostly correctly. The only issue is that
+action codes SSME-01-03 and SSME-01-02 are on the same line. This is a
+problem with how ***fitz*** parsed the blocks and not an issue with
+the clustering algorithm.
+
+##### Issues and Conclusion
+This was a good exercise that used the data from ***fitz*** to generate a table. It is not without its drawbacks as the simpler solution would be for ***fitz*** to detect tables where rows and/or columns were separated by space rather than lines. Some of the shortcomings are
+
+1.  If the page has multiple tables, they may not be kept separate. We
+    may have multiple tables collapsed into one. The trick maybe to run
+    clustering again, maybe with an algorithm like K-Means where we
+    specify that we want 2 or 3 clusters. By generating a cluster of
+    clusters, we might be able to detect multiple tables in the same
+    page.
+
+2.  If the table is wrapped in the page, into multiple columns, the
+    approach would not know that. We’d have a problem similar to the one
+    above. Additional processing maybe necessary to highlight the fact
+    that the table is wrapped around.
+
+3.  If there isn’t enough separation between lines and/or columns, the
+    content could be merged together with the previous row or column.
+
+4.  The table on the sample page that I used did not have a caption. The
+    close proximity of the caption would have put it in the table and
+    would require additional processing to be identified as a caption.
+
+This is an interesting and novel approach to detecting clusters of text
+in a page. I hope you find it inspirational to try out-of-the box
+techniques to solving problems. Feedback is appreciated at
+[*anandologist@gmail.com*](mailto:anandologist@gmail.com).
+</p></p></p></td></tr></table>
+:ET
