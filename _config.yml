@@ -12,7 +12,7 @@
 
 theme                  : "minimal-mistakes-jekyll"
 # remote_theme           : "mmistakes/minimal-mistakes"
-minimal_mistakes_skin    : "air" # "air", "aqua", "contrast", "dark", "dirt", "neon", "mint", "plum", "sunrise"
+minimal_mistakes_skin    : "sunrise" # "air", "aqua", "contrast", "dark", "dirt", "neon", "mint", "plum", "sunrise"
 
 # Site Settings
 locale                   : "en-US"
@@ -28,7 +28,7 @@ teaser                   : # path of fallback teaser image, e.g. "/assets/images
 logo                     : ""
 masthead_title           : "Srini Anand" # overrides the website title displayed in the masthead, use " " for no title
 breadcrumbs              : true # true, false (default)
-toc                      : true
+toc                      : False
 words_per_minute         : 200
 comments:
   provider               : # false (default), "disqus", "discourse", "facebook", "staticman", "staticman_v2", "utterances", "custom"
@@ -95,47 +95,43 @@ analytics:
 # Site Author
 author:
   name             : "Srini Anand"
-  avatar           : "/images/404.jpg"
-  bio              : "Data Scientist with specialization in NLP"
-  location         : ""
+  avatar           : "/images/profile_pic.jpeg"
+  bio              : "Data Scientist specializing in NLP"
+  location         : "Cincinnati, OH, USA"
   email            :
+
+# Site Footer
+#footer-links:
+#  dribbble:
+#  email:
+#  facebook:
+#  flickr:
+#  github: anandologist
+#  instagram:
+#  linkedin: srinianand
+#  pinterest:
+#  rss: # just type anything here for a working RSS icon
+#  twitter: anandologist
+#  stackoverflow: users/9702207/anandologist
+#  youtube: # channel/<your_long_string> or user/<user-name>
+#  googleplus: # anything in your profile username that comes after plus.google.com/
+
+# Site Footer
+footer:
   links:
-    - label: "Email"
-      icon: "fas fa-fw fa-envelope-square"
-      # url: mailto:your.name@email.com
-    - label: "Website"
-      icon: "fas fa-fw fa-link"
-      # url: "https://your-website.com"
     - label: "Twitter"
       icon: "fab fa-fw fa-twitter-square"
-      # url: "https://twitter.com/"
-      # url: "https://facebook.com/"
+      url: "https://twitter.com/srinianand"
     - label: "GitHub"
       icon: "fab fa-fw fa-github"
       url: "https://github.com/anandologist"
-    # - label: "Linkedin"
-    #  icon: "fab fa-fw fa-linkedin
-      # url: "https://linkedin.com/srinianand"
-
-# Site Footer
-footer-links:
-  dribbble:
-  email:
-  facebook:
-  flickr:
-  github: anandologist
-  instagram:
-  linkedin: srinianand
-  pinterest:
-  rss: # just type anything here for a working RSS icon
-  twitter: anandologist
-  stackoverflow: users/9702207/anandologist
-  youtube: # channel/<your_long_string> or user/<user-name>
-  googleplus: # anything in your profile username that comes after plus.google.com/
+    - label: "Instagram"
+      icon: "fab fa-fw fa-instagram"
+      url: "https://instagram.com/mmistakes"
 
 sidebar:
   - title: "Data Scientist"
-    image: http://placehold.it/350x250
+    image: "/images/profile_pic.jpeg"
     image_alt: "image"
     text: "Some text here."
   - title: "Another Title"
@@ -196,7 +192,7 @@ kramdown:
   auto_ids: true
   footnote_nr: 1
   entity_output: as_char
-  toc_levels: 1..6
+#  toc_levels: 1..6
   smart_quotes: lsquo,rsquo,ldquo,rdquo
   enable_coderay: false
 
